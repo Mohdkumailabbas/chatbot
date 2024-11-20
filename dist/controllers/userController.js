@@ -6,6 +6,10 @@ const userSchema = z.object({
     email: z.string().email("Invalid email Format"),
     password: z.string().min(6, "Password must contain at least 6 characters")
 });
+const LoginSchema = z.object({
+    email: z.string().email("Invalid email Format"),
+    password: z.string().min(6, "Password must contain at least 6 characters")
+});
 export const getAllUsers = async (req, res, next) => {
     try {
         const result = await pool.query("SELECT * FROM users");
@@ -49,6 +53,38 @@ export const userSignup = async (req, res, next) => {
         return res.status(400).json({
             message: "Error creating user",
             cause: err.message,
+        });
+    }
+};
+export const userLogin = async (req, res, next) => {
+    try {
+        const { email, password } = LoginSchema.parse(req.body);
+        const result = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+        // 2. Check if the user exists in the database
+        if (result.rows.length === 0) {
+            return res.status(401).json({
+                message: "Invalid credentails"
+            });
+        }
+        const user = result.rows[0];
+        // 3. Compare the provided password with the hashed password in the database
+        const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+        if (!isPasswordValid) {
+            return res.status(401).json({
+                message: "Invalid credentials",
+            });
+        }
+        // 4. Generate a token
+        return res.status(201).json({
+            message: "Login successfully",
+            userId: result.rows[0].user_id.toString()
+        });
+    }
+    catch (error) {
+        console.error('Login Error:', error);
+        return res.status(500).json({
+            message: 'Something went wrong',
+            cause: error.message,
         });
     }
 };

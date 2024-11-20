@@ -3,26 +3,31 @@ import pool from "../db/connection.js";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 
-const userSchema= z.object({
-    name:z.string().min(2,"Name is Required"),
-    email:z.string().email("Invalid email Format"),
-    password:z.string().min(6,"Password must contain at least 6 characters")
-})
+const userSchema = z.object({
+    name: z.string().min(2, "Name is Required"),
+    email: z.string().email("Invalid email Format"),
+    password: z.string().min(6, "Password must contain at least 6 characters")
+});
+const LoginSchema = z.object({
+    email: z.string().email("Invalid email Format"),
+    password: z.string().min(6, "Password must contain at least 6 characters")
+});
+
 export const getAllUsers = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const result = await pool.query("SELECT * FROM users")
-        const users=result.rows; // Extract rows containing user data
-        return res.status(200).json({message:"OK" ,users})
+        const users = result.rows; // Extract rows containing user data
+        return res.status(200).json({ message: "OK", users })
     } catch (err) {
-        res.status(400).json({message:"EROOR",cause:err.message})
+        res.status(400).json({ message: "EROOR", cause: err.message })
     }
 }
 export const userSignup = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const { name, email, password } =userSchema.parse(req.body) ;//validating input
+        const { name, email, password } = userSchema.parse(req.body);//validating input
         //checking email
-        const emailCheck= await pool.query("SELECT * FROM users WHERE email =$1 ",[email])
-        if(emailCheck.rows.length >0){ //Checks if the query returned at least one row If true, it indicates the email is already in use.
+        const emailCheck = await pool.query("SELECT * FROM users WHERE email =$1 ", [email])
+        if (emailCheck.rows.length > 0) { //Checks if the query returned at least one row If true, it indicates the email is already in use.
             return res.status(400).json({
                 message: "Error creating user",
                 cause: "Email already in use",
@@ -36,7 +41,7 @@ export const userSignup = async (req: Request, res: Response, next: NextFunction
             "INSERT INTO users (name, email, password_hash, created_at, updated_at) VALUES ($1, $2, $3, NOW(), NOW()) RETURNING *",
             [name, email, hashedPassword]
         );
-    
+
         // Return success response with user info
         return res.status(201).json({
             message: "User created successfully",
@@ -57,3 +62,36 @@ export const userSignup = async (req: Request, res: Response, next: NextFunction
         });
     }
 };
+export const userLogin = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { email, password } = LoginSchema.parse(req.body);
+        const result = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+        // 2. Check if the user exists in the database
+        if (result.rows.length === 0) {
+            return res.status(401).json({
+                message: "Invalid credentails"
+            })
+        }
+        const user = result.rows[0];
+        // 3. Compare the provided password with the hashed password in the database
+        const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+        if (!isPasswordValid) {
+            return res.status(401).json({
+                message: "Invalid credentials",
+            })
+        }
+
+        // 4. Generate a token
+
+        return res.status(201).json({
+            message: "Login successfully",
+            userId: result.rows[0].user_id.toString()
+        });
+    } catch (error) {
+        console.error('Login Error:', error);
+        return res.status(500).json({
+            message: 'Something went wrong',
+            cause: error.message,
+        });
+    }
+}
