@@ -2,6 +2,8 @@ import { NextFunction, Request, Response } from "express";
 import pool from "../db/connection.js";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { createToken } from "../utils/tokenGenrator.js";
+import { COOKIE_NAME } from "../utils/constant.js";
 
 const userSchema = z.object({
     name: z.string().min(2, "Name is Required"),
@@ -80,18 +82,32 @@ export const userLogin = async (req: Request, res: Response, next: NextFunction)
                 message: "Invalid credentials",
             })
         }
+        res.clearCookie(COOKIE_NAME,{
+            httpOnly:true , signed:true,path:"/"
+        })
 
         // 4. Generate a token
-
+        const token=createToken(user.user_id.toString(),user.email,"7d")
+        // 5 .Sendin Cookie
+        const expires=new Date();
+        expires.setDate(expires.getDate()+7)
+         res.cookie(COOKIE_NAME,token,{path:"/",expires, httpOnly:true , signed:true})
         return res.status(201).json({
             message: "Login successfully",
             userId: result.rows[0].user_id.toString()
         });
-    } catch (error) {
-        console.error('Login Error:', error);
+    } catch (err:any) {
+        if (err instanceof z.ZodError) {
+            // Handle Zod validation errors
+            return res.status(400).json({
+                message: "Validation failed",
+                errors: err.errors.map(e => e.message), // Extract error messages
+            });
+        }
+        console.error('Login Error:', err);
         return res.status(500).json({
             message: 'Something went wrong',
-            cause: error.message,
+            cause: err.message,
         });
     }
 }
