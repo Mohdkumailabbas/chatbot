@@ -11,3 +11,6 @@ body{
   color: white;
   font-family: "Robto",serif;
 }
+.image-inverted{
+  filter: invert(100%);
+}

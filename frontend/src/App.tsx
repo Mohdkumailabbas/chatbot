@@ -3,10 +3,10 @@
 import { Route, Routes } from "react-router-dom"
 import Header from "./components/Header"
 import Home from "./pages/Home"
-import Login from "./pages/login"
-import Signup from "./pages/signup"
-import Chat from "./pages/chat"
-import Notfound from "./pages/Notfound"
+import Login from "./pages/Login"
+import Signup from "./pages/Signup"
+import Chat from "./pages/Chat"
+import Notfound from "./pages/NotFound"
 
 const App = () => {
   return (
